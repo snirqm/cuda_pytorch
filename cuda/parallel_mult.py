@@ -17,10 +17,12 @@ def ParallelMatMul(_A: torch.Tensor, _B: torch.Tensor, T: int, TB: int):
 
 def squeeze(C, _A, _B):
     if len(C.shape) == 2:
+        if len(_A.shape) == 1 and len(_B.shape) == 1:
+            return C[0, 0]
         if len(_A.shape) == 1:
-            C = C.squeeze(0)
-        elif len(_B.shape) == 1:
-            C = C.squeeze(1)
+            return C.squeeze(0)
+        if len(_B.shape) == 1:
+            return C.squeeze(1)
     return C
 
 

@@ -5,12 +5,16 @@ dist: build
 install: build
 	poetry run python setup.py install
 clean:
+	rm -rf dist
+	rm -rf build
+	rm -rf *.egg-info
+	rm -rf assignment
 	poetry run python setup.py clean
 test: install
 	cp parallel_mult.py test/parallel_mult.py
-	poetry run pytest test
+	poetry run pytest test --timeout=1 --timeout_method=thread
 sanity: install
-	poetry run pytest test/basic_test.py
+	poetry run pytest test/basic_test.py --timeout=1 --timeout_method=thread
 assign: test dist
 	mkdir -p assignment
 	rm -rf assignment/*
