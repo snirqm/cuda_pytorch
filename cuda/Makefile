@@ -24,7 +24,7 @@ assign: test dist
 	cp *.cu assignment/src
 	cp main.py assignment
 	cp parallel_mult.py assignment
-	cp dist/parallel_mult_cuda-0.1.0.tar.gz assignment/dist
+	cp dist/parallel_mult_cuda-*.*.*.tar.gz assignment/dist
 	cp Makefile assignment/src
 	cp README.md assignment
 	cp requirements.txt assignment

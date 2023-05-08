@@ -6,7 +6,6 @@ pytestmark = pytest.mark.timeout(1)
 T = 256
 TB = 1
 
-@pytest.mark.skip(reason="Not working")
 def test_big_tensor():
     size = 256
     A = torch.Tensor(size, size).fill_(1.0)

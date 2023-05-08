@@ -1,5 +1,5 @@
 #include <torch/extension.h>
-torch::Tensor cuda_matmult(torch::Tensor A, torch::Tensor B, torch::Tensor C, int T, int TB);
+torch::Tensor cuda_matmult(torch::Tensor A, torch::Tensor B, torch::Tensor C, const unsigned int T, const unsigned int TB);
 torch::Tensor cpu_matmult(torch::Tensor A, torch::Tensor B, torch::Tensor C);
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("cuda_matmult", &cuda_matmult, "cuda_matmult (CUDA)");

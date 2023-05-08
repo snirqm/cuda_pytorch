@@ -5,7 +5,7 @@ import os, shutil
 from parallel_mult import ParallelMatMul
 
 def main():
-    n_list = [2, 4, 8, 16, 32, 64, 128, 256]
+    n_list = [1, 2, 4, 8, 16, 32, 64, 128, 256]
     T = 256
     TB = 1
     num_iters = 100
@@ -54,7 +54,7 @@ def main():
     plt.savefig('report/matmat.png', dpi=300)
     print("created report/matmat.png")
 
-    TB_list = [2, 4, 8, 16, 32, 64, 128, 256]
+    TB_list = [1, 2, 4, 8, 16, 32, 64, 128, 256]
     timings = { TB : {"matmul" : {"ParallelMatMul": []}, "vector_mat_mul" : {"ParallelMatMul": []}} for TB in TB_list}
     for TB in TB_list:
         for n in n_list:
