@@ -22,6 +22,15 @@ def test_2x1_conversion():
     print(C_res.shape)
     assert torch.allclose(C, C_res)
 
+def test_basic_2x1():
+    A, B = torch.Tensor([[1.0, 0.0], [0.0, 1.0]]), torch.Tensor([[1.0], [0.0]])
+    C = ParallelMatMul(A.cuda(), B.cuda(), T, TB)
+    C_res = torch.matmul(A, B).cuda()
+    assert torch.allclose(C, C_res)
+    A, B = torch.rand(10, 54), torch.rand(54, 1)
+    C = ParallelMatMul(A.cuda(), B.cuda(), T, TB)
+    C_res = torch.matmul(A, B).cuda()
+    assert torch.allclose(C, C_res)
 @pytest.mark.parametrize("tensors", [
     (torch.Tensor([[1.0, 0.0], [0.0, 1.0]]), torch.Tensor([[1.0], [0.0]])),
     (torch.rand(10, 10), torch.rand(10, 1)),
@@ -31,11 +40,10 @@ def test_2x1_conversion():
     (torch.rand(10, 100), torch.rand(100, 1)),
     (torch.rand(10, 74), torch.rand(74, 1))
     ])
-def test_basic_2x1(tensors):
+def test_many_2x1(tensors):
     A, B = tensors
     C = ParallelMatMul(A.cuda(), B.cuda(), T, TB)
     C_res = torch.matmul(A, B).cuda()
-    print(C_res.shape)
     assert torch.allclose(C, C_res)
 
 
@@ -50,6 +58,8 @@ def test_basic_1x2(tensors):
     A, B = tensors
     C = ParallelMatMul(A.cuda(), B.cuda(), T, TB)
     assert torch.allclose(C, torch.matmul(A, B).cuda())
+    
+
 
 @pytest.mark.parametrize("tensors", [
     (torch.Tensor([[1.0, 0.0]]), torch.Tensor([[1.0], [0.0]])),
