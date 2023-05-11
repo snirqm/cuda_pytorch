@@ -3,6 +3,7 @@ build: parallel_mult.cpp parallel_mult_kernel.cu
 dist: build
 	poetry run python setup.py sdist
 install: build
+	cp parallel_mult.py test/parallel_mult.py
 	poetry run python setup.py install
 clean:
 	rm -rf dist

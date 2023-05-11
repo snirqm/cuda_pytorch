@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import os, shutil
 from parallel_mult import ParallelMatMul
 
+
 def main():
     n_list = [1, 2, 4, 8, 16, 32, 64, 128, 256]
     T = 256
@@ -13,7 +14,10 @@ def main():
         shutil.rmtree("report")
     os.mkdir("report")
 
-    timings = {"matmul": {"ParallelMatMul": []}, "vector_matmul": {"ParallelMatMul": []}}
+    timings = {
+        "matmul": {"ParallelMatMul": []},
+        "vector_matmul": {"ParallelMatMul": []},
+    }
     for n in n_list:
         A = torch.rand(n, n).cuda()
         B = torch.rand(n).cuda()
@@ -26,12 +30,14 @@ def main():
         timings["vector_matmul"]["ParallelMatMul"].append(vector_matmul_time)
 
     plt.figure()
-    plt.plot(n_list, timings["vector_matmul"]["ParallelMatMul"], '-.', label="ParallelMatMul")
+    plt.plot(
+        n_list, timings["vector_matmul"]["ParallelMatMul"], "-.", label="ParallelMatMul"
+    )
     plt.xlabel("n")
     plt.ylabel("Time (seconds)")
     plt.title("Matrix x Vector Multiplication Method (T = 256, TB = 1)")
     plt.legend()
-    plt.savefig('report/matvec.png', dpi=300)
+    plt.savefig("report/matvec.png", dpi=300)
     print("created report/matvec.png")
 
     for n in n_list:
@@ -44,18 +50,21 @@ def main():
         end_time = time.time()
         matmul_time = end_time - start_time
         timings["matmul"]["ParallelMatMul"].append(matmul_time)
-        
+
     plt.figure()
-    plt.plot(n_list, timings["matmul"]["ParallelMatMul"], '-.', label="ParallelMatMul")
+    plt.plot(n_list, timings["matmul"]["ParallelMatMul"], "-.", label="ParallelMatMul")
     plt.xlabel("n")
     plt.ylabel("Time (seconds)")
     plt.title("Matrix x Matrix Multiplication Method (T = 256, TB = 1)")
     plt.legend()
-    plt.savefig('report/matmat.png', dpi=300)
+    plt.savefig("report/matmat.png", dpi=300)
     print("created report/matmat.png")
 
     TB_list = [1, 2, 4, 8, 16, 32, 64, 128, 256]
-    timings = { TB : {"matmul" : {"ParallelMatMul": []}, "vector_mat_mul" : {"ParallelMatMul": []}} for TB in TB_list}
+    timings = {
+        TB: {"matmul": {"ParallelMatMul": []}, "vector_mat_mul": {"ParallelMatMul": []}}
+        for TB in TB_list
+    }
     for TB in TB_list:
         for n in n_list:
             A = torch.rand(n, n).cuda()
@@ -77,22 +86,33 @@ def main():
             torch.matmul(A, Bn)
     plt.figure()
     for TB in TB_list:
-        plt.plot(n_list, timings[TB]["matmul"]["ParallelMatMul"],'-.', label="TB = {} ParallelMatMul".format(TB))
+        plt.plot(
+            n_list,
+            timings[TB]["matmul"]["ParallelMatMul"],
+            "-.",
+            label="TB = {} ParallelMatMul".format(TB),
+        )
     plt.xlabel("n")
     plt.ylabel("Time (seconds)")
     plt.title("Matrix x Matrix Multiplication Method (T = 256)")
     plt.legend()
-    plt.savefig('report/matmat_TB.png', dpi=300)
+    plt.savefig("report/matmat_TB.png", dpi=300)
     print("created report/matmat_TB.png")
     plt.figure()
     for TB in TB_list:
-        plt.plot(n_list, timings[TB]["vector_mat_mul"]["ParallelMatMul"],'-.', label="TB = {} ParallelMatMul".format(TB))
+        plt.plot(
+            n_list,
+            timings[TB]["vector_mat_mul"]["ParallelMatMul"],
+            "-.",
+            label="TB = {} ParallelMatMul".format(TB),
+        )
     plt.xlabel("n")
     plt.ylabel("Time (seconds)")
     plt.title("Matrix x Vector Multiplication Method (T = 256)")
     plt.legend()
-    plt.savefig('report/matvec_TB.png', dpi=300)
+    plt.savefig("report/matvec_TB.png", dpi=300)
     print("created report/matvec_TB.png")
+
 
 if __name__ == "__main__":
     exit(main())
