@@ -1,2 +1,11 @@
 **/__pycache__
 .vim
+*.png
+*.log
+*.o
+cuda/build/*
+cuda/dist/*
+*.egg-info
+cuda/assignment/*
+cuda/test/parallel_mult.py
+cuda/build/lib.linux-x86_64-cpython-310/parallel_mult_cuda.cpython-310-x86_64-linux-gnu.so

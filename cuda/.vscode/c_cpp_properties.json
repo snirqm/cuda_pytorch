@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/home/snir/.cache/pypoetry/virtualenvs/cuda-pytorch-SdCLLIP6-py3.10/lib/python3.10/site-packages/torch/include",
+                "/home/snir/.cache/pypoetry/virtualenvs/cuda-pytorch-SdCLLIP6-py3.10/lib/python3.10/site-packages/torch/include/torch/csrc/api/include",
+                "/usr/include/x86_64-linux-gnu/c++/11",
+                "/usr/include/x86_64-linux-gnu",
+                "/usr/include/python3.10"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/x86_64-linux-gnu-g++",
+            "cStandard": "c17",
+            "cppStandard": "c++14",
+            "intelliSenseMode": "linux-gcc-x86",
+            "configurationProvider": "ms-vscode.makefile-tools"
+        }
+    ],
+    "version": 4
+}

@@ -7,6 +7,7 @@ from parallel_mult import ParallelMatMul
 
 def main():
     n_list = [1, 2, 4, 8, 16, 32, 64, 128, 256]
+    TB_list = [1, 2, 4, 8, 16, 32, 64, 128, 256]
     T = 256
     TB = 1
     num_iters = 100
@@ -21,7 +22,6 @@ def main():
     for n in n_list:
         A = torch.rand(n, n).cuda()
         B = torch.rand(n).cuda()
-        C = torch.zeros(n).cuda()
         start_time = time.time()
         for i in range(num_iters):
             ParallelMatMul(A, B, T, TB)
@@ -43,7 +43,6 @@ def main():
     for n in n_list:
         A = torch.rand(n, n).cuda()
         B = torch.rand(n, n).cuda()
-        C = torch.zeros(n, n).cuda()
         start_time = time.time()
         for i in range(num_iters):
             ParallelMatMul(A, B, T, TB)
@@ -59,31 +58,23 @@ def main():
     plt.legend()
     plt.savefig("report/matmat.png", dpi=300)
     print("created report/matmat.png")
-
-    TB_list = [1, 2, 4, 8, 16, 32, 64, 128, 256]
+    
     timings = {
         TB: {"matmul": {"ParallelMatMul": []}, "vector_mat_mul": {"ParallelMatMul": []}}
         for TB in TB_list
     }
+    
     for TB in TB_list:
         for n in n_list:
             A = torch.rand(n, n).cuda()
-            Bn = torch.rand(n).cuda()
             Bnn = torch.rand(n, n).cuda()
-            C = torch.zeros(n, n).cuda()
             start_time = time.time()
             for i in range(num_iters):
                 ParallelMatMul(A, Bnn, T, TB)
             end_time = time.time()
             matmul_time = end_time - start_time
             timings[TB]["matmul"]["ParallelMatMul"].append(matmul_time)
-            start_time = time.time()
-            for i in range(num_iters):
-                ParallelMatMul(A, Bn, T, TB)
-            end_time = time.time()
-            vector_matmul_time = end_time - start_time
-            timings[TB]["vector_mat_mul"]["ParallelMatMul"].append(vector_matmul_time)
-            torch.matmul(A, Bn)
+            
     plt.figure()
     for TB in TB_list:
         plt.plot(
@@ -98,6 +89,21 @@ def main():
     plt.legend()
     plt.savefig("report/matmat_TB.png", dpi=300)
     print("created report/matmat_TB.png")
+    
+    
+    
+    for TB in TB_list:
+        for n in n_list:
+            A = torch.rand(n, n).cuda()
+            Bn = torch.rand(n).cuda()
+            start_time = time.time()
+            for i in range(num_iters):
+                ParallelMatMul(A, Bn, T, TB)
+            end_time = time.time()
+            vector_matmul_time = end_time - start_time
+            timings[TB]["vector_mat_mul"]["ParallelMatMul"].append(vector_matmul_time)
+
+
     plt.figure()
     for TB in TB_list:
         plt.plot(

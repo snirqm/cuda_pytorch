@@ -6,70 +6,83 @@
 #include <stdlib.h>
 #include <torch/extension.h>
 
+#define IS_FIRST(threadIdx) (threadIdx.x == 0 && threadIdx.y == 0)
+
 #define BLOCK_SIZE 32
 template <typename scalar_type>
-__global__ void batch_fast_matmul_kernel_2x1_new(
+__global__ void batch_fast_matmul_kernel_2x1(
     const torch::PackedTensorAccessor<scalar_type, 2, torch::RestrictPtrTraits>
         A,
     const torch::PackedTensorAccessor<scalar_type, 1, torch::RestrictPtrTraits>
         B,
-    torch::PackedTensorAccessor<scalar_type, 2, torch::RestrictPtrTraits> C) {
-  const unsigned int N = A.size(0);
-  const unsigned int K = A.size(1);
-  unsigned int row_offset = 0;
-  for (; row_offset < N; row_offset += gridDim.y * blockDim.y) {
+    torch::PackedTensorAccessor<scalar_type, 1, torch::RestrictPtrTraits> C) {
+  unsigned int N = A.size(0);
+  unsigned int K = A.size(1);
+  __shared__ scalar_type Acc[BLOCK_SIZE * BLOCK_SIZE];
+
+  for (unsigned int i = 0; i <= N; i += gridDim.x) {
+    unsigned int row = i + blockIdx.x - 1;
     scalar_type acc = 0;
-    for (unsigned int i = 0; i < K; i++) {
-      unsigned int j = row_offset + threadIdx.y + blockDim.y * blockIdx.y;
-      if (j < N) {
-        acc += A[j][i] * B[i];
+    const size_t tile_size = std::min((int)(blockDim.x * blockDim.y), BLOCK_SIZE * BLOCK_SIZE);
+    const unsigned int num_tiles = (K + tile_size - 1) / tile_size;
+    for (unsigned int t = 0; t < num_tiles; t++) {
+      unsigned int Ax = t * tile_size + threadIdx.x;
+      if (Ax < K && row < N) {
+        Acc[threadIdx.x] = A[row][Ax] * B[Ax];
+      } else {
+        Acc[threadIdx.x] = 0;
       }
+      __syncthreads();
+      if (IS_FIRST(threadIdx) && row < N) {
+        for (unsigned int k = 0; k < tile_size && t * tile_size + k < K; k++) {
+          acc += Acc[k];
+        }
+      }
+      __syncthreads();
     }
-    C[row_offset + threadIdx.y + blockDim.y * blockIdx.y][0] = acc;
+
+    if (IS_FIRST(threadIdx) && row < N) {
+      C[row] = acc;
+    }
+    __syncthreads();
   }
 }
 
+
 template <typename scalar_type>
-__global__ void batch_fast_matmul_kernel_2x1(
-     const torch::PackedTensorAccessor<scalar_type, 2,
-     torch::RestrictPtrTraits>
+__global__ void batch_fast_matmul_kernel_1x1(
+    const torch::PackedTensorAccessor<scalar_type, 1, torch::RestrictPtrTraits>
         A,
-    const torch::PackedTensorAccessor<scalar_type, 1,
-    torch::RestrictPtrTraits>
+    const torch::PackedTensorAccessor<scalar_type, 1, torch::RestrictPtrTraits>
         B,
-    torch::PackedTensorAccessor<scalar_type, 2, torch::RestrictPtrTraits> C)
-    {
-  const unsigned int N = A.size(0);
-  const unsigned int K = A.size(1);
-  __shared__ scalar_type As[BLOCK_SIZE][BLOCK_SIZE];
-  __shared__ scalar_type Bs[BLOCK_SIZE];
-  unsigned int col = threadIdx.x + blockDim.x * blockIdx.x;
-  for (unsigned int i = 0; i < N; i += blockDim.y * gridDim.y) {
-    unsigned int row = i + threadIdx.y + blockDim.y * blockIdx.y;
-    scalar_type acc = 0;
-    const size_t tile_size = std::min((int) blockDim.x, BLOCK_SIZE);
-    const unsigned int num_tiles = (K + tile_size - 1) / tile_size;
-    // The loop accumulates the result for each tile in `acc`
-    for (unsigned int t = 0; t < num_tiles; t++) {
-        // Fetch data from A to shared memory
-      unsigned int Ax = t * tile_size + col;
-      if (Ax < K && row < N) {
-        As[threadIdx.y][threadIdx.x] = A[row][Ax];
-      } else {
-        As[threadIdx.y][threadIdx.x] = 0;
-      }
-      __syncthreads();
-      // Accumulate the result
-      for (unsigned int k = 0; k < blockDim.x && t * tile_size + k < K; k++) {
-        acc += As[threadIdx.y][k] * B[k + t * tile_size];
-      }
-      __syncthreads();
+    torch::PackedTensorAccessor<scalar_type, 1, torch::RestrictPtrTraits> C) {
+  __shared__ scalar_type Acc[BLOCK_SIZE * BLOCK_SIZE];
+  unsigned int N = A.size(0);
+  scalar_type acc = 0;
+  int idx = blockIdx.x - 1;
+  const size_t tile_size =
+      std::min((int)(blockDim.x * blockDim.y), BLOCK_SIZE * BLOCK_SIZE);
+  const unsigned int num_tiles = (N + tile_size - 1) / tile_size;
+  for (unsigned int t = 0; t < num_tiles; t++) {
+    unsigned int Ax = t * tile_size + threadIdx.x;
+    if (Ax < N) {
+      Acc[threadIdx.x] = A[Ax] * B[Ax];
+    } else {
+      Acc[threadIdx.x] = 0;
     }
-    if (row < N && col == 0) {
-      C[row][col] = acc;
+    __syncthreads();
+    if (IS_FIRST(threadIdx) && (idx <= 0)) {
+      for (unsigned int k = 0; k < tile_size && t * tile_size + k < N; k++) {
+        acc += Acc[k];
+      }
     }
+    __syncthreads();
   }
-  return;
+
+  if (IS_FIRST(threadIdx) && (idx <= 0)) {
+    C[0] = acc;
+  }
+  __syncthreads();
 }
 
 template <typename scalar_type>
@@ -86,7 +99,6 @@ __global__ void batch_fast_matmul_kernel_2x2(
   __shared__ scalar_type Bs[BLOCK_SIZE][BLOCK_SIZE];
   for (unsigned int i = 0; i < M; i += blockDim.x * gridDim.x) {
     for (unsigned int j = 0; j < N; j += blockDim.y * gridDim.y) {
-      __syncthreads();
       unsigned int col = i + threadIdx.x + blockDim.x * blockIdx.x;
       unsigned int row = j + threadIdx.y + blockDim.y * blockIdx.y;
       scalar_type acc = 0;
@@ -130,23 +142,27 @@ void invoke_matmul_kernel(const torch::Tensor A, const torch::Tensor B,
                           unsigned int threadBlocks) {
   const unsigned int blockSize = std::floor(std::sqrt(threadsPerBlock));
   const unsigned int gridSize = std::floor(sqrt(threadBlocks));
-    const dim3 dimBlock(blockSize, blockSize);
   if (CASE_2x2(A, B)) {
     if (C.size(0) * C.size(1) <= threadsPerBlock) {
       threadBlocks = 1;
     } else if (C.size(0) * C.size(1) <= threadsPerBlock * threadBlocks) {
-      threadBlocks = std::min(threadBlocks, std::ceil(C.size(0) * C.size(1) / threadsPerBlock));
+      threadBlocks = std::ceil(C.size(0) * C.size(1) / threadsPerBlock);
     }
+    const dim3 dimBlock(blockSize, blockSize);
     const dim3 dimGrid = {gridSize, gridSize};
     AT_DISPATCH_FLOATING_TYPES(A.scalar_type(), "ParallelMatMul_2x2", [&] {
       batch_fast_matmul_kernel_2x2<scalar_t><<<dimGrid, dimBlock>>>(
           CUDA_TENSOR(A, 2), CUDA_TENSOR(B, 2), CUDA_TENSOR(C, 2));
     });
   } else if (CASE_2x1(A, B)) {
-    const dim3 dimGrid = {1, threadBlocks};
     AT_DISPATCH_FLOATING_TYPES(A.scalar_type(), "ParallelMatMul_2x1", [&] {
-      batch_fast_matmul_kernel_2x1<scalar_t><<<dimGrid, dimBlock>>>(
-          CUDA_TENSOR(A, 2), CUDA_TENSOR(B, 1), CUDA_TENSOR(C, 2));
+      batch_fast_matmul_kernel_2x1<scalar_t><<<threadBlocks, threadsPerBlock>>>(
+          CUDA_TENSOR(A, 2), CUDA_TENSOR(B, 1), CUDA_TENSOR(C, 1));
+    });
+  } else if (CASE_1x1(A, B)) {
+    AT_DISPATCH_FLOATING_TYPES(A.scalar_type(), "ParallelMatMul_1x1", [&] {
+      batch_fast_matmul_kernel_1x1<scalar_t><<<threadBlocks, threadsPerBlock>>>(
+          CUDA_TENSOR(A, 1), CUDA_TENSOR(B, 1), CUDA_TENSOR(C, 1));
     });
   } else {
     TORCH_CHECK(false, "ParallelMatMul: Unsupported tensor dimensions");
@@ -154,7 +170,6 @@ void invoke_matmul_kernel(const torch::Tensor A, const torch::Tensor B,
   cudaDeviceSynchronize();
 }
 
-// NOTE: AT_ASSERT has become AT_CHECK on master after 0.4.
 #define CHECK_CUDA(x) AT_ASSERTM(x.is_cuda(), #x " must be a CUDA tensor")
 #define CHECK_CONTIGUOUS(x)                                                    \
   AT_ASSERTM(x.is_contiguous(), #x " must be contiguous")
@@ -191,7 +206,6 @@ __host__ void calc_cpu_matmult(const torch::Tensor A, const torch::Tensor B,
 }
 
 torch::Tensor cpu_matmult(torch::Tensor A, torch::Tensor B, torch::Tensor C) {
-  // Check input tensor dimensions
   CHECK_CONTIGUOUS(A);
   CHECK_CONTIGUOUS(B);
   CHECK_CONTIGUOUS(C);

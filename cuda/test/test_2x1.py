@@ -51,6 +51,15 @@ def test_many_TB_2x1(TB, n):
     C1 = ParallelMatMul(A.cuda(), B.cuda(), T, TB)
     C2 = torch.matmul(A, B).cuda()
     assert_tensors(C1, C2)
+    
+def test_single_TB_2x1():
+    TB = 8
+    n = 2
+    A = abs(torch.rand(n, n))
+    B = abs(torch.rand(n))
+    C1 = ParallelMatMul(A.cuda(), B.cuda(), T, TB)
+    C2 = torch.matmul(A, B).cuda()
+    assert_tensors(C1, C2)
 
 
 def test_2x1_bug():

@@ -4,17 +4,15 @@ from parallel_mult import ParallelMatMul
 
 # add timeout to all tests
 
-timeout = pytest.mark.timeout(10)
-pytest.skip("skip all tests", allow_module_level=True)
 T = 256
 TB = 1
 
 
 def test_1x1_bug():
-    T = 32
+    T = 1
     TB = 1
     A = torch.ones(2)
-    B = torch.ones(2)
+    B = torch.ones(2) + 1
     C = ParallelMatMul(A.cuda(), B.cuda(), T, TB)
     assert torch.allclose(C, torch.matmul(A, B).cuda())
 
@@ -35,11 +33,11 @@ def test_basic_1x1(tensors):
     assert torch.allclose(C, torch.matmul(A, B).cuda())
 
 
-@pytest.mark.parametrize("TB", [8, 16, 32, 64, 128, 256])
+@pytest.mark.parametrize("TB", [1, 2, 3, 4, 5 , 8, 16, 32, 64, 128, 256])
 def test_many_TB_n_1x1(TB):
     n = 1
-    A = abs(torch.rand(n, n))
-    B = abs(torch.rand(n, n))
+    A = abs(torch.rand(n))
+    B = abs(torch.rand(n))
     C1 = ParallelMatMul(A.cuda(), B.cuda(), T, TB)
     C2 = torch.matmul(A, B)
     assert torch.allclose(C1, C2.cuda())

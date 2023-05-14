@@ -9,4 +9,4 @@ def assert_tensors(C_res: Tensor, C_target: Tensor):
     elif (all(C_res > C_target)):
         raise AssertionError(f"Pytorch and CUDA results differ, but it seems like Pytorch computed less than CUDA\n {C_res} > {C_target}")
     else:
-        raise AssertionError(f"Pytorch and CUDA results differ in indexes {where(C_res != C_target)}")
+        raise AssertionError(f"Pytorch and CUDA results differ in indexes {where(C_res != C_target)}\n {C_res} != {C_target}")

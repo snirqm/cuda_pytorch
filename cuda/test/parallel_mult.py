@@ -8,6 +8,7 @@ class ParallelMatMulCls(object):
         self.A, self.B = A, B
         self.X, self.Y = None, None
         self.should_transpose = False
+        self.is_cuda = False
 
     def validate_device(self):
         assert self.A.is_cuda == self.B.is_cuda, "A and B must be on the same device"
@@ -36,13 +37,12 @@ class ParallelMatMulCls(object):
         return self
 
     def load_matrixes(self):
-        self.should_transpose = False
         if (len(self.A.shape) == 2 and self.A.shape[0] == 1) and (
             len(self.B.shape) == 2 and self.B.shape[1] == 1
         ):
             self.X = self.A.squeeze(0)
             self.Y = self.B.squeeze(1)
-        elif len(self.A.shape) == 2 and self.A.shape[0] == 1:
+        elif len(self.A.shape) == 2 and self.A.shape[0] == 1 and len(self.B.shape) == 2 and self.B.shape[1] != 1:
             self.X = self.B.transpose(0, 1)
             self.Y = self.A.squeeze(0)
             self.should_transpose = True
@@ -55,16 +55,27 @@ class ParallelMatMulCls(object):
         else:
             self.X = self.A
             self.Y = self.B
-            self.should_transpose = False
         return self
 
     @staticmethod
-    def allocate_matrix(n: int, m: int, dtype: torch.dtype, cuda: bool):
-        return torch.zeros((n, m), dtype=dtype, device="cuda" if cuda else "cpu")
+    def allocate_matrix(shape, dtype: torch.dtype, cuda: bool):
+        return torch.zeros(shape, dtype=dtype, device="cuda" if cuda else "cpu")
+
+    @staticmethod
+    def get_shape(shapeA, shapeB):
+        if len(shapeA) == 1 and len(shapeB) == 1:
+            return (1,)
+        elif len(shapeB) == 1:
+            return (shapeA[0],)
+        elif len(shapeA) == 1:
+            return (shapeB[1],)
+        else:
+            return (shapeA[0], shapeB[1])
 
     def matmul(self, T: int, TB: int):
+        shape = self.get_shape(self.X.shape, self.Y.shape)
         self.C = self.allocate_matrix(
-            self.X.shape[0], self.Y.shape[1] if len(self.Y.shape) != 1 else 1, self.X.dtype, self.is_cuda
+            shape, self.X.dtype, self.is_cuda
         )
         if self.is_cuda:
             parallel_mult_cuda.cuda_matmult(self.X, self.Y, self.C, T, TB)
@@ -80,13 +91,23 @@ class ParallelMatMulCls(object):
         return self
     def transpose(self):
         if self.should_transpose:
+            if self.C.dim() == 1:
+                self.C = self.C.unsqueeze(1)
             self.C = self.C.transpose(0, 1)
         return self
 
     def squeeze(self):
         if (len(self.A.shape) == 1 or len(self.B.shape) == 1) and len(self.C.shape) == 2:
-            self.C =  self.C.squeeze(1)
+            self.C = self.C.squeeze(1)
+            return self
+        if len(self.A.shape) == 2 and len(self.B.shape) == 2 and len(self.C.shape) == 1:
+            if self.A.shape[0] == 1:
+                self.C = self.C.unsqueeze(0)
+            if self.B.shape[1] == 1:
+                self.C = self.C.unsqueeze(1)
+            return self
         return self
+
     def get_result(self):
         return self.C
 
